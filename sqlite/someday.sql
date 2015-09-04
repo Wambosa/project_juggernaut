@@ -2,31 +2,23 @@ BEGIN TRANSACTION;
 
 PRAGMA foreign_keys = 1;
 
-CREATE TABLE Command (
-	CommandId		INTEGER PRIMARY KEY AUTOINCREMENT,
-	CommandName		TEXT,	-- easy name
-	ExecText		TEXT	-- what is executed on the command line. think string.Format
+CREATE TABLE Action (
+	ActionId		INTEGER PRIMARY KEY AUTOINCREMENT,
+	ActionName		TEXT	-- easy name (possible to have duplicates due to potentially different methods)
 );
-INSERT INTO Command VALUES ('setBuildID', 'turtlebot.exe -getrevision "US00000" | turtlebot.exe -getlatestbuild "{0}" | rallybot.exe -buildId {0} {1}'
-
+INSERT INTO `Action` VALUES
+(1, 'define'),
+(2, 'setBuildId');
 
 CREATE TABLE ChainCommand (
 	ChainCommandId			INTEGER PRIMARY KEY AUTOINCREMENT,
-	ChainCommandName		TEXT, 		-- name of joint command group
-	Step					INTEGER,	--used for ordering
-	CommandId				INTEGER		-- the command in this sequence
-
-	FOREIGN KEY(CommandId) REFERENCES Command(CommandId)
+	ActionId				INTEGER,	-- the overall action desired
+	Step					INTEGER,	-- used for ordering
+	ExecText				TEXT,		-- what is executed on the command line. think string.Format
+	FOREIGN KEY(ActionId) REFERENCES Action(ActionId)
 );
-
-INSERT INTO JointCommand VALUES (1, 'setBuildID', 1, 35); --turtlebot args
-INSERT INTO JointCommand VALUES (2, 'setBuildID', 2, 35); --turtlebot args
-INSERT INTO JointCommand VALUES (3, 'setBuildID', 3, 12); --rallybot
-
-
-INSERT INTO JointCommand VALUES (4, 'setBuildID', 1, 35); --turtlebot args
-INSERT INTO JointCommand VALUES (5, 'setBuildID', 2, 12); --rallybot
-
+INSERT INTO `ChainCommand` (`ActionId`, `Step`, `ExecText`) VALUES
+(1, 1, 'echo someResultSetOrAnswerString{0}');
 
 CREATE TABLE Mind (
 	MindId			INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,10 +33,10 @@ CREATE TABLE Mind (
 CREATE TABLE MindCapability (
 	MindCapabilityId 	INTEGER PRIMARY KEY AUTOINCREMENT,
 	MindId				INTEGER,
-	CommandId			INTEGER,
+	ActionId			INTEGER,
 
 	FOREIGN KEY(MindId) REFERENCES Mind(MindId),
-	FOREIGN KEY(CommandId) REFERENCES Command(CommandId)
+	FOREIGN KEY(ActionId) REFERENCES Action(ActionId)
 );
 
 CREATE TABLE ParcelType (
@@ -82,28 +74,30 @@ CREATE TABLE UserPreference (
 -- this means that mind(s) will but into this users convos more often
 
 CREATE TABLE JobStatus (
-	JobStatudId 	INTEGER PRIMARY KEY AUTOINCREMENT,
+	JobStatusId 	INTEGER PRIMARY KEY AUTOINCREMENT,
 	JobStatusName	TEXT
 );
-INSERT INTO `JobStatus` VALUES (1, 'NEW');
-INSERT INTO `JobStatus` VALUES (2, 'STARTED');
-INSERT INTO `JobStatus` VALUES (3, 'COMPLETE');
-INSERT INTO `JobStatus` VALUES (4, 'NEEDARGS');		--ask the user for things
-INSERT INTO `JobStatus` VALUES (5, 'BADARGS');		--ask the user for things
-INSERT INTO `JobStatus` VALUES (6, 'MISSINGMODULE');--this flags another mind to take over
-INSERT INTO `JobStatus` VALUES (7, 'BROKENMODULE');	--this flags another mind to take over
+INSERT INTO `JobStatus` VALUES 
+(1, 'NEW'),
+(2, 'STARTED'),
+(3, 'COMPLETE'),
+(4, 'NEEDARGS'),		--ask the user for things
+(5, 'BADARGS'),			--ask the user for things
+(6, 'MISSINGMODULE'),	--this flags another mind to take over
+(7, 'BROKENMODULE');	--this flags another mind to take over
 
 CREATE TABLE Job (
-	JobId 		INTEGER PRIMARY KEY AUTOINCREMENT,
-	JobStatusId INTEGER,	-- bot progression of job
-	CommandId	INTEGER,	-- command that should be executed
-	MindId		INTEGER,	-- mind that has begun working on this
-	UserId		INTEGER,	-- user that triggered this job
-	CreatedOn	TEXT,		-- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
-	LastUpdated TEXT,		-- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
+	JobId 			INTEGER PRIMARY KEY AUTOINCREMENT,
+	JobStatusId 	INTEGER,	-- bot progression of job
+	ActionId		INTEGER,	-- action that should be taken
+	Certainty		INTEGER,	-- the higher the number, the more certain i am that it is the right action
+	MindId			INTEGER,	-- mind that has begun working on this
+	UserId			INTEGER,	-- user that triggered this job
+	CreatedOn		TEXT,		-- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
+	LastUpdated 	TEXT,		-- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
 
-	FOREIGN KEY(JobStatudId) REFERENCES JobStatus(JobStatudId),
-	FOREIGN KEY(CommandId) REFERENCES Command(CommandId),
+	FOREIGN KEY(JobStatusId) REFERENCES JobStatus(JobStatusId),
+	FOREIGN KEY(ActionId) REFERENCES Action(ActionId),
 	FOREIGN KEY(MindId) REFERENCES Mind(MindId),
 	FOREIGN KEY(UserId) REFERENCES User(UserId)
 );
@@ -117,10 +111,10 @@ INSERT INTO `ParseStatus` VALUES (2, 'STARTED');
 INSERT INTO `ParseStatus` VALUES (3, 'COMPLETE'); -- then there is a new job
 INSERT INTO `ParseStatus` VALUES (4, 'FAIL'); -- then there is just a response record
 
-CREATE TABLE RecievedMessage (
-	RecievedMessageId 	INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE ReceivedMessage (--default val for parsestatus !! todo:
+	ReceivedMessageId 	INTEGER PRIMARY KEY AUTOINCREMENT,
 	ParcelTypeId		INT,		-- where did this message come from
-	MesasgeText			TEXT,		-- the raw received message
+	MessageText			TEXT,		-- the raw received message
 	UserId				INTEGER,	-- who owns this message
 	JobId				INTEGER,	-- if parsing was successful
 	ParseStatusId		INTEGER,	-- lexy progression of parsing
@@ -136,7 +130,7 @@ CREATE TABLE RecievedMessage (
 CREATE TABLE ResponseMessage (
 	ResponseMessageId 	INTEGER PRIMARY KEY AUTOINCREMENT,
 	ParcelTypeId		INT,		-- how to send this message
-	MesasgeText			TEXT,		-- what will be sent back to user
+	MessageText			TEXT,		-- what will be sent back to user
 	JobId				INT,		-- 
 	MindId				INTEGER,	-- who made this repsonse (0 = lexy)
 	UserId				INTEGER,	-- who gets this message	
@@ -148,5 +142,37 @@ CREATE TABLE ResponseMessage (
 	FOREIGN KEY(JobId) REFERENCES Job(JobId),
 	FOREIGN KEY(UserId) REFERENCES User(UserId)
 );
+
+CREATE TABLE MindVocabulary (
+	MindVocabularyId	INTEGER PRIMARY KEY AUTOINCREMENT,
+	SimpleWord			TEXT,	-- the word that the machine knows and can translate to a command
+	Regex				TEXT,	-- the match that my machine must make
+	Certainty			INTEGER	-- the amount of points that should be added towards a particular interpretation
+);
+
+--will iteratte over all possible regex and build up points for all unique simpleWords found. simple plus plus scoring system
+INSERT INTO `MindVocabulary` (`SimpleWord`, `Regex`, `Certainty`) VALUES
+('define', 'define\b', 75),
+('define', 'definition\b', 100),
+('define', 'meaning\sof\b', 50), --some regex with the same meaning or alternate mispellings can be joined to a single row with the regex OR clause. actually, only do this for mispellings
+('define', 'dictionary', 50),
+('define', 'what\sis', 25);
+
+
+--test data
+INSERT INTO ReceivedMessage
+(ParcelTypeId, MessageText, ParseStatusId)
+VALUES
+(1, 'define fool', 1),
+(1, 'define fool for me', 1),
+(1, 'define fool you fool', 1),
+(1, 'define the word fool', 1),
+(1, 'how does the dictionary describe fool', 1),
+(1, 'what is a fool?', 1),
+(1, 'what is the meaning of fool?', 1),
+(1, 'meaning of fool?', 1),
+(1, 'fool definition', 1),
+(1, 'jew definition of fool', 1),
+(1, 'i like blades',1 );
 
 COMMIT;
