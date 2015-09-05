@@ -2,52 +2,106 @@
 
 var moment = require('moment');
 var sqlite = require('sqlite3').verbose();
-var db = new sqlite.Database('someday.db');
 
 var actionMap = []; //no need for this after debug.
 
-db.each('SELECT * FROM ReceivedMessage WHERE ParseStatusId != 3', function(err, row){
-    GetPotentialActions(db, row.MessageText, function(foundActions){
+main();
 
-        actionMap.push({
-            humanMessage: row.MessageText,
-            potentialActions: foundActions
+function main(){
+
+    var db = new sqlite.Database('someday.db');
+
+    db.all('SELECT * FROM MindVocabulary', [], function(vocabErr, vocabRows){
+
+        if(vocabErr){
+            process.exit(vocabErr);}
+
+        var cachedReasoning = [];
+        var callbackCount = 0;
+
+        vocabRows.forEach(function(vocab){
+
+            var query =
+                ' \
+                SELECT * \
+                FROM ParameterReasoningGrouping map \
+                JOIN ParameterReasoning pr \
+                ON pr.ParameterReasoningId = map.ParameterReasoningId \
+                WHERE map.MindVocabularyId = $mindVocabularyId \
+                ';
+
+            db.all(query, {$mindVocabularyId : vocab.MindVocabularyId}, function(reasoningErr, reasoningRows){
+
+                if(reasoningErr){
+                    process.exit(reasoningErr);}
+
+                cachedReasoning[vocab.MindVocabularyId] = vocab;
+                cachedReasoning[vocab.MindVocabularyId].parameterReasonings = reasoningRows;
+                callbackCount++;
+                if(callbackCount === vocabRows.length){
+                    ProcessNewMessages(db, cachedReasoning);}
+                });
         });
+    });
+
+    db.close();
+}
+
+function ProcessNewMessages(db, cachedReasoning){
+
+    db.each('SELECT * FROM ReceivedMessage WHERE ParseStatusId != 3', function(err, row){
+
+        var potentialActions = GetPotentialActions(cachedReasoning, row.MessageText);
+        var bestAction = {totalCertainty:0};
+
+        potentialActions.forEach(function(action) {
+
+            if (action.totalCertainty > bestAction.totalCertainty) {
+                bestAction = action;}
+        });
+
+        console.log(bestAction);
         //todo: just take the highest action certainty and create a job record with it, or try to extract the arguments
         //todo: using the argument formula table. {0}\s.* where the variable gets replaces with the original regex
-        console.log({
-            humanMessage: row.MessageText,
-            potentialActions: foundActions
-        });
     });
-});
+}
 
-db.close();
+function GetPotentialActions(cachedReasoning, text){
+    var potentialActions = [];
 
-function GetPotentialActions(database, text, callback){
-    //todo: also get possible args associated with a particular match
-    //todo: cache the mind vocabulary on the first run, if it is not null, then use the global cache
-    database.all('SELECT * FROM MindVocabulary', [], function(err, rows){
+    cachedReasoning.forEach(function(triggerPhrase){
+        if(text.match(triggerPhrase.Regex)) {
 
-        if(!err){
+            if (potentialActions[triggerPhrase.MindVocabularyId]) {
+                potentialActions[triggerPhrase.MindVocabularyId].totalCertainty += triggerPhrase.Certainty;
+            } else {
+                potentialActions[triggerPhrase.MindVocabularyId] = {
+                    humanMessage: text,
+                    simpleWord: triggerPhrase.SimpleWord,
+                    totalCertainty: triggerPhrase.Certainty,
+                    parameters: []
+                };
+            }
 
-            var potentialActions = {};
+            triggerPhrase.parameterReasonings.forEach(function (paramReasoning) {
+                var magicString = paramReasoning.Regex.replace('{0}', triggerPhrase.Regex); //this should not fire unless the param search contains the replaceable syntax. only supports one replace right now.
+                var tryArg = text.match(new RegExp(magicString, 'i'));
 
-            rows.forEach(function(mindVocabulary){
-                if(text.match(mindVocabulary.Regex)){
-                    if(potentialActions[mindVocabulary.SimpleWord]){
-                        potentialActions[mindVocabulary.SimpleWord] += mindVocabulary.Certainty;
-                    }else{
-                        potentialActions[mindVocabulary.SimpleWord] = mindVocabulary.Certainty;
+                if (tryArg) {
+
+                    potentialActions[triggerPhrase.MindVocabularyId].totalCertainty += 100; // if args are discovered, then this is more likely to be the best option
+
+                    if(paramReasoning.IsIncludeOriginRegex) {
+                        potentialActions[triggerPhrase.MindVocabularyId].parameters[paramReasoning.ParameterName] = tryArg[0].replace(new RegExp(triggerPhrase.Regex), '').trim();
+                    } else {
+                        potentialActions[triggerPhrase.MindVocabularyId].parameters[paramReasoning.ParameterName] = tryArg[0].trim();
                     }
-
-                    //need to create an object that contains certainty later. since i also need named args (which must be obtained via arg formula)
                 }
             });
-
-            callback(potentialActions);
         }
     });
+
+    return potentialActions;
 }
 
 function CreateJob(database, actionId, certainty, userId, callback){
