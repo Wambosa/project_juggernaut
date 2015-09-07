@@ -72,16 +72,12 @@ function GetPotentialActions(cachedReasoning, text){
     cachedReasoning.forEach(function(triggerPhrase){
         if(text.match(triggerPhrase.Regex)) {
 
-            if (potentialActions[triggerPhrase.MindVocabularyId]) {
-                potentialActions[triggerPhrase.MindVocabularyId].totalCertainty += triggerPhrase.Certainty;
-            } else {
-                potentialActions[triggerPhrase.MindVocabularyId] = {
-                    humanMessage: text,
-                    simpleWord: triggerPhrase.SimpleWord,
-                    totalCertainty: triggerPhrase.Certainty,
-                    parameters: []
-                };
-            }
+            potentialActions[triggerPhrase.MindVocabularyId] = {
+                humanMessage: text,
+                simpleWord: triggerPhrase.SimpleWord,
+                totalCertainty: triggerPhrase.Certainty,
+                parameters: []
+            };
 
             triggerPhrase.parameterReasonings.forEach(function (paramReasoning) {
                 var magicString = paramReasoning.Regex.replace('{0}', triggerPhrase.Regex); //this should not fire unless the param search contains the replaceable syntax. only supports one replace right now.
