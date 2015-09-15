@@ -1,33 +1,33 @@
 package main
 
 import (
-	"database/sql"
-	"github.com/mattn/go-sqlite3"
-	"../pkg/conf"
-	"../pkg/slack"
-	"../pkg/jugger"
-	"fmt"
 	"os"
+	"fmt"
+	"database/sql"
 	"encoding/json"
+	"github.com/wambosa/confman"
+	"github.com/wambosa/slack"
+	"github.com/wambosa/jugger"
+	"github.com/mattn/go-sqlite3"
 )
 
 func main() {
 
 	//todo: find a way to use relative paths
-	pirateFile := "C:/work/git/notes/go/src/ParcelPirate.conf"
-	slackFile := "C:/work/git/notes/go/src/Slack.conf"
-	//todo: will need to load a different conf foreach message source (slack, email, lync, flowdock)
-	pirateConf, err := conf.LoadJson(pirateFile)
+	pirateFile := "C:/work/git/notes/go/src/ParcelPirate.confman"
+	slackFile := "C:/work/git/notes/go/src/Slack.confman"
+	//todo: will need to load a different confman foreach message source (slack, email, lync, flowdock)
+	pirateConf, err := confman.LoadJson(pirateFile)
 
 	if err != nil {fatal(err)}
 
 	connString := pirateConf["targetDatabase"].(string)
 
-	_slackConf, err := conf.LoadJson(slackFile)
+	_slackConf, err := confman.LoadJson(slackFile)
 
 	if err != nil {fatal(err)}
 
-	//todo: iterate over the conf property keys and apply them to the existing properties in custom struct
+	//todo: iterate over the confman property keys and apply them to the existing properties in custom struct
 	slackConf := slack.SlackConfig {
 		Token: _slackConf["token"].(string),
 		Channel: _slackConf["channel"].(string),
@@ -46,7 +46,7 @@ func main() {
 
 	if err != nil {fatal(err)}
 
-	conf.SaveJson(slackFile, slackConf)
+	confman.SaveJson(slackFile, slackConf)
 
 	//this is just debug reporting. remove later
 	buf, _ := json.MarshalIndent(messages, "", "  ")
