@@ -1,0 +1,16 @@
+# =============== #
+# bin/build folder#
+# =============== #
+[Bb]in
+[Bb]uild
+ 
+# ============ #
+# OS generated #
+# ============ #
+.DS_Store*
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+[Tt]humbs.db
