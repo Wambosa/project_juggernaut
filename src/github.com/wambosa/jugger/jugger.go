@@ -2,7 +2,7 @@ package jugger
 import "time"
 
 type ReceivedMessage struct {
-	ReceivedMessage int
+	ReceivedMessageId int
 	ParcelTypeId int
 	MessageText string
 	UserId int
@@ -10,4 +10,9 @@ type ReceivedMessage struct {
 	ParseStatusId int
 	CreatedOn time.Time
 	LastUpdated time.Time
+}
+
+type ParcelType struct {
+	ParcelTypeId int
+	ParcelTypeName string
 }

@@ -44,11 +44,12 @@ CREATE TABLE ParcelType (
 	ParcelTypeName	TEXT -- what do we know this as
 );
 INSERT INTO `ParcelType` VALUES
-(1, 'Slack Api'),
-(2, 'Lync Client'),
-(3, 'SMTP Client'),
-(4, 'Google SMS'),
-(5, 'Google Voice');
+(1, 'Slack'),
+(2, 'Lync'),
+(3, 'SMTP'),
+(4, 'SMS'),
+(5, 'Voice'),
+(6, 'FlowDock');
 
 CREATE TABLE User ( -- a user can be used like a group as well
 	UserId			INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -2,7 +2,7 @@ package slack
 
 import (
 	"fmt"
-	"../net"
+	"github.com/wambosa/net"
 )
 
 const Version = 1
@@ -29,6 +29,14 @@ func Init(conf SlackConfig) {
 	}
 }
 
+func ConvertSlackConfigToMap(conf SlackConfig) (map[string]interface{}){
+	return map[string]interface{}{
+		"token": conf.Token,
+		"channel": conf.Channel,
+		"lastRunTime":conf.LastRunTime,
+	}
+}
+
 func GetChannels() (map[string]interface{}, error) {
 
 	//todo: change the return type to either a slice of maps (or a map of maps)
@@ -50,9 +58,19 @@ func GetDefaultChannelMessagesSince(unixStamp string)(map[string]interface{}, er
 	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSince"] + unixStamp)
 }
 
-func GetDefaultChannelMessagesSinceLastRun()(map[string]interface{}, error) {
+func GetDefaultChannelMessagesSinceLastRun()([]map[string]interface{}, error) {//todo: test out map[string]string
 
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSinceLastRun"])
+	response, err := simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSinceLastRun"])
+
+	if(err != nil){return nil, err}
+
+	messages := make([]map[string]interface{}, len(response["messages"].([]interface{})))
+
+	for i, message := range response["messages"].([]interface{}) {
+		messages[i] = message.(map[string]interface{})
+	}
+
+	return messages, nil
 }
 
 func PostMessageToDefaultChannel(message string)(map[string]interface{}, error) {

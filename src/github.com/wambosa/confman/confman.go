@@ -1,19 +1,42 @@
 package confman
 
 import (
+	"os"
+	"reflect"
+	"strings"
 	"io/ioutil"
 	"encoding/json"
 	"path/filepath"
-	"os"
 )
 
 const Version = 1
 
-func getThisFolder() string{
+type LoadFunc func(string)(map[string]interface{}, error)
+
+func GetThisFolder() string{
 
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 
 	return dir
+}
+
+func StructToMap(aStruct interface{}) (map[string]interface{}) {
+
+	var newMap map[string]interface{}
+
+	thisStruct := reflect.ValueOf(aStruct)
+
+	structType := thisStruct.Type()
+
+	if structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()}
+
+	for i := 0; i < thisStruct.NumField(); i++ {
+		field := thisStruct.Field(i)
+		//fmt.Printf("%d: %s %s = %v\n", i, structType.Field(i).Name, field.Type(), field.Interface())
+		newMap[strings.ToLower(structType.Field(i).Name)] = field.Interface()
+	}
+	return newMap
 }
 
 func LoadRaw(path string) (string, error) {
@@ -47,7 +70,7 @@ func SaveJson(path string, alteredConfig map[string]interface{}) error {
 	return nil
 }
 
-func LoadSqlite(query string) (map[string]string, error) {
+func LoadSqlite(query string) (map[string]interface{}, error) {
 
 	//todo: load from the sql database instead of a file
 	return nil, nil
