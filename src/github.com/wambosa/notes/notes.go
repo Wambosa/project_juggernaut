@@ -1,4 +1,4 @@
-package loislane//rename
+package notes
 import (
 	"fmt"
 	"reflect"
