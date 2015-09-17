@@ -2,12 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d8f2b2a6-0274-43d9-9129-4b9d25c96d58" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/github.com/wambosa/debug/loislane.go" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/ParcelPirate.go" afterPath="$PROJECT_DIR$/src/ParcelPirate.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go" afterPath="$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/github.com/wambosa/jugger/jugger.go" afterPath="$PROJECT_DIR$/src/github.com/wambosa/jugger/jugger.go" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go" afterPath="$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/sqlite/someday.sql" afterPath="$PROJECT_DIR$/sqlite/someday.sql" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="project_juggernaut.iws" />
@@ -33,8 +29,14 @@
         <entry file="file://$PROJECT_DIR$/src/ParcelPirate.go">
           <provider selected="true" editor-type-id="text-editor">
             <state vertical-scroll-proportion="0.9158416">
-              <caret line="96" column="0" selection-start-line="96" selection-start-column="0" selection-end-line="96" selection-end-column="0" />
-              <folding />
+              <caret line="204" column="0" selection-start-line="204" selection-start-column="0" selection-end-line="204" selection-end-column="0" />
+              <folding>
+                <element signature="e#14#181#0" expanded="true" />
+                <element signature="n#!!block;n#ProcessSlackParcels#0" expanded="false" />
+                <element signature="n#!!block;n#fatal#0" expanded="false" />
+                <element signature="n#!!block;n#CreateReceivedMessages#0" expanded="false" />
+                <element signature="n#!!block;n#FindUserId#0" expanded="false" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -43,10 +45,8 @@
         <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go">
           <provider selected="true" editor-type-id="text-editor">
             <state vertical-scroll-proportion="0.0">
-              <caret line="10" column="0" selection-start-line="10" selection-start-column="0" selection-end-line="10" selection-end-column="0" />
-              <folding>
-                <element signature="e#17#102#0" expanded="true" />
-              </folding>
+              <caret line="67" column="37" selection-start-line="67" selection-start-column="37" selection-end-line="67" selection-end-column="37" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -55,10 +55,18 @@
         <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go">
           <provider selected="true" editor-type-id="text-editor">
             <state vertical-scroll-proportion="0.0">
-              <caret line="37" column="1" selection-start-line="37" selection-start-column="1" selection-end-line="37" selection-end-column="1" />
-              <folding>
-                <element signature="e#15#58#0" expanded="true" />
-              </folding>
+              <caret line="65" column="0" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="simhttp.go" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/net/simhttp.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0">
+              <caret line="6" column="0" selection-start-line="6" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -94,11 +102,11 @@
         <option value="$PROJECT_DIR$/src/mind.ps1" />
         <option value="$PROJECT_DIR$/README.md" />
         <option value="$PROJECT_DIR$/src/github.com/wambosa/confman/conf.go" />
-        <option value="$PROJECT_DIR$/src/github.com/wambosa/net/simhttp.go" />
-        <option value="$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go" />
         <option value="$PROJECT_DIR$/src/github.com/wambosa/jugger/jugger.go" />
         <option value="$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go" />
         <option value="$PROJECT_DIR$/src/github.com/wambosa/debug/loislane.go" />
+        <option value="$PROJECT_DIR$/src/github.com/wambosa/net/simhttp.go" />
+        <option value="$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go" />
         <option value="$PROJECT_DIR$/src/ParcelPirate.go" />
       </list>
     </option>
@@ -204,6 +212,58 @@
             </PATH_ELEMENT>
             <PATH_ELEMENT>
               <option name="myItemId" value="wambosa" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="slack" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="project_juggernaut" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="project_juggernaut" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="src" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="github.com" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="wambosa" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="project_juggernaut" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="project_juggernaut" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="src" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="github.com" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="wambosa" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="confman" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -395,7 +455,13 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
+          <folding>
+            <element signature="e#14#181#0" expanded="true" />
+            <element signature="n#!!block;n#ProcessSlackParcels#0" expanded="false" />
+            <element signature="n#!!block;n#fatal#0" expanded="false" />
+            <element signature="n#!!block;n#CreateReceivedMessages#0" expanded="false" />
+            <element signature="n#!!block;n#FindUserId#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -403,9 +469,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="10" column="0" selection-start-line="10" selection-start-column="0" selection-end-line="10" selection-end-column="0" />
-          <folding>
-            <element signature="e#17#102#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -413,9 +477,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="37" column="1" selection-start-line="37" selection-start-column="1" selection-end-line="37" selection-end-column="1" />
-          <folding>
-            <element signature="e#15#58#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -433,7 +495,13 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
+          <folding>
+            <element signature="e#14#181#0" expanded="true" />
+            <element signature="n#!!block;n#ProcessSlackParcels#0" expanded="false" />
+            <element signature="n#!!block;n#fatal#0" expanded="false" />
+            <element signature="n#!!block;n#CreateReceivedMessages#0" expanded="false" />
+            <element signature="n#!!block;n#FindUserId#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -476,6 +544,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.33333334">
           <caret line="68" column="32" selection-start-line="68" selection-start-column="30" selection-end-line="68" selection-end-column="32" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -483,13 +552,9 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-11.75862">
           <caret line="175" column="23" selection-start-line="175" selection-start-column="23" selection-end-line="175" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/net/simhttp.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.74752474">
-          <caret line="37" column="1" selection-start-line="37" selection-start-column="1" selection-end-line="37" selection-end-column="1" />
+          <folding>
+            <element signature="e#318#333#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -499,26 +564,6 @@
           <caret line="14" column="23" selection-start-line="14" selection-start-column="23" selection-end-line="14" selection-end-column="23" />
           <folding>
             <element signature="e#15#28#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="37" column="1" selection-start-line="37" selection-start-column="1" selection-end-line="37" selection-end-column="1" />
-          <folding>
-            <element signature="e#15#58#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="10" column="0" selection-start-line="10" selection-start-column="0" selection-end-line="10" selection-end-column="0" />
-          <folding>
-            <element signature="e#17#102#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -533,11 +578,41 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/net/simhttp.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="6" column="0" selection-start-line="6" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/confman/confman.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="67" column="37" selection-start-line="67" selection-start-column="37" selection-end-line="67" selection-end-column="37" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/github.com/wambosa/slack/slack.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="65" column="0" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/ParcelPirate.go">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.9158416">
-          <caret line="96" column="0" selection-start-line="96" selection-start-column="0" selection-end-line="96" selection-end-column="0" />
-          <folding />
+          <caret line="204" column="0" selection-start-line="204" selection-start-column="0" selection-end-line="204" selection-end-column="0" />
+          <folding>
+            <element signature="e#14#181#0" expanded="true" />
+            <element signature="n#!!block;n#ProcessSlackParcels#0" expanded="false" />
+            <element signature="n#!!block;n#fatal#0" expanded="false" />
+            <element signature="n#!!block;n#CreateReceivedMessages#0" expanded="false" />
+            <element signature="n#!!block;n#FindUserId#0" expanded="false" />
+          </folding>
         </state>
       </provider>
     </entry>

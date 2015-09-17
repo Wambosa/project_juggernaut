@@ -56,18 +56,23 @@ func main() {
 			"json":fmt.Sprintf("%s\\%s.conf", confman.GetThisFolder(), parcelTypeName),
 		}
 
-		//messages, err := ParcelProcessors[parcelTypeName].(func(map[string]confman.LoadFunc, map[string]string))(getConfFuncs, getConfArgs)
 		messages, err := ParcelProcessors[parcelTypeName](getConfFuncs, getConfArgs)
 
 		if err != nil {fatal(fmt.Sprintf("ParcelProcessor %s failed", parcelTypeName), err)}
 
-		if(len(messages) > 0){
+		if(len(messages) > 0) {
 
 			receivedMessages, err := CreateReceivedMessages(&messages, parcelTypeId)
 
-			if err != nil {fatal("Unable to convert RawApiMessages to []jugger.ReceivedMessage", err)}
+			if err != nil {fatal("Unable to convert []RawApiMessages to []jugger.ReceivedMessage", err)}
 
-			SaveNewlyReceivedMessages(&receivedMessages)
+			err = SaveNewlyReceivedMessages(&receivedMessages)
+
+			if err != nil {fatal("Failed to write to database", err)}
+
+		}else{
+
+			fmt.Printf("No messages found while crawling %s", parcelTypeName)
 		}
 	}
 }
@@ -107,7 +112,7 @@ func ProcessSlackParcels(getConfFuncs map[string]confman.LoadFunc, getConfArgs m
 	if(len(messages) > 0){
 		slackConf.LastRunTime = messages[0].ts 	//note: slack api returns message in newest/latest first order. time.Now().UTC().Format(time.RFC3339)
 	}else{
-		slackConf.LastRunTime = string(time.Now().UTC().Unix())
+		slackConf.LastRunTime = fmt.Sprintf("%v.000000", time.Now().UTC().Unix())
 	}
 
 	//todo: maybe error check this guy.. also need to accomodate database saving. so may need to add this to the func map
@@ -183,6 +188,8 @@ func FindUserId(magneticValue string, parcelType int)(int, error){
 
 			fmt.Println("FinsUserId has found multiple matches for ", magneticValue, userId)
 		}
+
+		rowCount++
 	}
 
 	return userId, nil
@@ -193,7 +200,7 @@ func SaveNewlyReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
 	query := `
 	INSERT INTO ReceivedMessage
 	(ParcelTypeId, MessageText, UserId)
-	Values(?, ?, ?, ?)
+	Values(?, ?, ?)
 	`
 	db, err := sql.Open("sqlite3", ConnectionString)
 
@@ -205,15 +212,15 @@ func SaveNewlyReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
 
 	if(err != nil){return err}
 
-	q, err := transaction.Prepare(query)
+	statement, err := transaction.Prepare(query)
 
 	if(err != nil){return err}
 
-	defer q.Close()
+	defer statement.Close()
 
 	for _, message := range *messages {
 
-		_, err = q.Exec(
+		_, err := statement.Exec(
 			message.ParcelTypeId,
 			message.MessageText,
 			message.UserId)

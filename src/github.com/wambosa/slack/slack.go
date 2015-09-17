@@ -62,7 +62,7 @@ func GetDefaultChannelMessagesSinceLastRun()([]map[string]interface{}, error) {/
 
 	response, err := simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSinceLastRun"])
 
-	if(err != nil){return nil, err}
+	if(err != nil || response == nil){return nil, err}
 
 	messages := make([]map[string]interface{}, len(response["messages"].([]interface{})))
 
