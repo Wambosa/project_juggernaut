@@ -11,8 +11,6 @@ import (
 
 const Version = 1
 
-type LoadFunc func(string)(map[string]interface{}, error)
-
 func GetThisFolder() string{
 
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -34,7 +32,7 @@ func StructToMap(aStruct interface{}) (map[string]interface{}) {
 	for i := 0; i < thisStruct.NumField(); i++ {
 		field := thisStruct.Field(i)
 		//fmt.Printf("%d: %s %s = %v\n", i, structType.Field(i).Name, field.Type(), field.Interface())
-		newMap[strings.ToLower(structType.Field(i).Name)] = field.Interface()
+		newMap[strings.ToLower(structType.Field(i).Name)] = field.Interface()//try not string lower.. could be annoying
 	}
 	return newMap
 }
@@ -70,13 +68,13 @@ func SaveJson(path string, alteredConfig map[string]interface{}) error {
 	return nil
 }
 
-func LoadSqlite(query string) (map[string]interface{}, error) {
+func LoadSqlite(connString string, query string) (map[string]interface{}, error) {
 
 	//todo: load from the sql database instead of a file
 	return nil, nil
 }
 
-func SaveSqlite(query string) error {
+func SaveSqlite(connString string, query string) error {
 	//todo: later just use polyjug instead. (query string databaseName string)
 	return nil
 }

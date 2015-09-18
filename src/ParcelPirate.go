@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"time"
 	"database/sql"
-	"github.com/wambosa/confman"
+	"github.com/wambosa/easydb"
 	"github.com/wambosa/slack"
 	"github.com/wambosa/jugger"
+	"github.com/wambosa/confman"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -21,7 +22,7 @@ type RawApiMessage struct {
 	ts string
 }
 
-type ProcessingMethod func(map[string]confman.LoadFunc, map[string]string)([]RawApiMessage, error)
+type ProcessingMethod func()([]RawApiMessage, error)
 
 func main() {
 
@@ -46,17 +47,7 @@ func main() {
 
 	for parcelTypeName, parcelTypeId := range supportedParcelTypes {
 
-		//todo: this is conf load section still needs a bit more versatility with what the key names are. likely different for each different source. store that somewhere...
-		getConfFuncs := map[string]confman.LoadFunc {
-			"db": confman.LoadSqlite,
-			"json":confman.LoadJson,
-		}
-		getConfArgs := map[string]string {
-			"db": fmt.Sprintf("SELECT key, value FROM ConfigTable WHERE key IN('token', 'channel', 'lastRunTime') AND OwnerName = '%s'", parcelTypeName),
-			"json":fmt.Sprintf("%s\\%s.conf", confman.GetThisFolder(), parcelTypeName),
-		}
-
-		messages, err := ParcelProcessors[parcelTypeName](getConfFuncs, getConfArgs)
+		messages, err := ParcelProcessors[parcelTypeName]()
 
 		if err != nil {fatal(fmt.Sprintf("ParcelProcessor %s failed", parcelTypeName), err)}
 
@@ -77,9 +68,11 @@ func main() {
 	}
 }
 
-func ProcessSlackParcels(getConfFuncs map[string]confman.LoadFunc, getConfArgs map[string]string)([]RawApiMessage, error){
+func ProcessSlackParcels()([]RawApiMessage, error){
 
-	confMap, err := getConfFuncs["json"](getConfArgs["json"])
+	//todo: defautlt to db lookup, then failback to config file. if neither exist. exit.
+	// "SELECT key, value FROM ConfigTable WHERE key IN('token', 'channel', 'lastRunTime') AND OwnerName = '%s'"
+	confMap, err := confman.LoadJson(confman.GetThisFolder() + "\\slack.conf")
 
 	if err != nil {return nil, err}
 
@@ -115,8 +108,8 @@ func ProcessSlackParcels(getConfFuncs map[string]confman.LoadFunc, getConfArgs m
 		slackConf.LastRunTime = fmt.Sprintf("%v.000000", time.Now().UTC().Unix())
 	}
 
-	//todo: maybe error check this guy.. also need to accomodate database saving. so may need to add this to the func map
-	confman.SaveJson(getConfArgs["json"], slack.ConvertSlackConfigToMap(slackConf))
+	//todo: maybe error check this guy...
+	confman.SaveJson(confman.GetThisFolder() + "\\slack.conf", slack.ConvertSlackConfigToMap(slackConf))
 
 	return messages, nil
 }
@@ -133,7 +126,7 @@ func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.
 
 	for i, message := range *messages {
 
-		userId, err := FindUserId(message.user, parcelType)
+		userId, err := FindUserIdBySlackUser(message.user, parcelType)
 
 		if(err != nil){return nil, err}
 
@@ -152,18 +145,16 @@ func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.
 	return receivedMessages, nil
 }
 
-func FindUserId(magneticValue string, parcelType int)(int, error){
+func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
+	//note: this has the potential to get screwed up if my earching returns more than one result.
+	// i am counting on the fact that people cannot share email addresses and that slack user ids never get recyled
+	// if either of those assumptions is bad, then we can get screwed up references
 
-	//search smartly for the user. you will need to reach to the user from their user data, then compare the name, email or whatever we can find
-	//depending on the parcel source, i may be able to query against the api again in order to discover what the source knows about the user, the more data i can get, the less i have to assume.
-	//try to match using email first, then username, then first last name combo
-
-	//we must return a userId no matter what.
-
-	query := `
+	bestTryQuery := `
 	SELECT UserId
 	FROM UserPreference
-	WHERE Value LIKE '%s'
+	WHERE Key = 'SlackUser'
+	AND Value LIKE '%s'
 	`
 	db, err := sql.Open("sqlite3", ConnectionString)
 
@@ -171,27 +162,62 @@ func FindUserId(magneticValue string, parcelType int)(int, error){
 
 	defer db.Close()
 
-	rows, err := db.Query(fmt.Sprintf(query, magneticValue))
+	userIds, err := easydb.Query(db, fmt.Sprintf(bestTryQuery, slackUser))
 
 	if(err != nil){return 0, err}
 
 	var userId int
 
-	rowCount := 0
+	//then we either have not yet seen this user in slack, or they do not have relationship with juggernaut
+	if(len(userIds) == 0){
 
-	for rows.Next() {
-		//this is where we have to get smart.
-		//if there are multiple rows, then something is likely wrong. wee need to pick the best option. for now ignore this possibility
-		rows.Scan(&userId)
+		slackInfo, err := slack.GetUserInfo(slackUser)
 
-		if(rowCount > 0){
+		if err != nil {return 0, err}
 
-			fmt.Println("FinsUserId has found multiple matches for ", magneticValue, userId)
+		profile := slackInfo["profile"].(map[string]interface{})
+
+		findByEmailQuery := `
+		SELECT UserId
+		FROM UserPreference
+		WHERE Key = 'Email'
+		AND Value = '%s'
+		`
+		userIds, err = easydb.Query(db, fmt.Sprintf(findByEmailQuery, profile["email"].(string)))
+
+		if err != nil {return 0, err}
+
+		if(len(userIds) > 0){
+			//we have a relationship, but did not recognize the user in this context at first.
+			userId = userIds[0]["UserId"].(int)
+
+		}else{
+			//then we do not have a relationship with juggernaut, create a userrecord and add in some preferences
+			//todo: dig deeper by trying a first name, last name match ?
+
+			res, err := easydb.Exec(db,
+				`INSERT INTO User (NickName, FirstName, LastName) VALUES (?,?,?)`,
+				slackInfo["name"].(string), profile["first_name"].(string), profile["last_name"].(string))
+
+			if err != nil {return 0, err}
+
+			id64, _ := res.LastInsertId()
+			userId = int(id64)
+			easydb.Exec(db,
+				`INSERT INTO UserPreference (UserId, Key, Value) VALUES (?,?,?)`,
+				fmt.Sprintf("%v",userId), "Email", profile["email"].(string))
 		}
 
-		rowCount++
+		//whether or not the user already existed, their slack data did not exist, so lets be sure to store it for next time.
+		easydb.Exec(db,
+			`INSERT INTO UserPreference (UserId, Key, Value) VALUES (?,?,?)`,
+			userId, "SlackUser", slackUser)
+
+	}else{
+		userId = userIds[0]["UserId"].(int)
 	}
 
+	os.Exit(1)
 	return userId, nil
 }
 

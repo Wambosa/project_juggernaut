@@ -26,6 +26,7 @@ func Init(conf SlackConfig) {
 		"GetDefaultChannelMessagesSince": fmt.Sprintf("channels.history?token=%s&channel=%s&oldest=", conf.Token, conf.Channel),
 		"GetDefaultChannelMessagesSinceLastRun": fmt.Sprintf("channels.history?token=%s&channel=%s&oldest=%s", conf.Token, conf.Channel, conf.LastRunTime),
 		"PostMessageToDefaultChannel": fmt.Sprintf("chat.postMessage?token=%s&username=ChOPS&channel=%s&text=", conf.Token, conf.Channel),
+		"GetUserInfo": fmt.Sprintf("users.info?token=%s&user=", conf.Token),
 	}
 }
 
@@ -78,4 +79,13 @@ func PostMessageToDefaultChannel(message string)(map[string]interface{}, error) 
 	return simhttp.GetResponseAsMap(baseUrl + methodLinks["PostMessageToDefaultChannel"] + message)
 }
 
-//todo: Get User info using userId (this wil be done so that we can have a unified userbase across all apps)
+func GetUserInfo(userId string)(map[string]interface{}, error){
+
+	response, err := simhttp.GetResponseAsMap(baseUrl + methodLinks["GetUserInfo"] + userId)
+
+	if err != nil || response == nil {return nil, err}
+
+	userInfo := response["user"].(map[string]interface{})
+
+	return userInfo, nil
+}

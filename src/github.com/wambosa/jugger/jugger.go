@@ -16,3 +16,11 @@ type ParcelType struct {
 	ParcelTypeId int
 	ParcelTypeName string
 }
+
+type User struct {
+	UserId int
+	NickName string
+	FirstName string
+	LastName string
+	LastUpdated time.Time
+}

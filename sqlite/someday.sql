@@ -56,12 +56,7 @@ CREATE TABLE User ( -- a user can be used like a group as well
 	NickName		TEXT,
 	FirstName		TEXT,
 	LastName		TEXT,
-	UserName		TEXT,		-- where we send the targeted message back	
-	Area			TEXT,		-- where we send the targeted message back	
-	ParcelTypeId	TEXT, 		-- where did we find this user?
 	LastUpdated		TIMESTAMP	DEFAULT CURRENT_TIMESTAMP, -- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
-
-	FOREIGN KEY(ParcelTypeId) REFERENCES ParcelType(ParcelTypeId)
 );
 
 CREATE TABLE UserPreference (
