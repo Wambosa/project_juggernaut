@@ -58,19 +58,15 @@ func main() {
 
 			fmt.Printf("snatched %v parcels from %s\n", len(parcels), parcelTypeName)
 
-			receivedMessages, metaDatas, err := CreateReceivedMessages(&parcels, parcelTypeId)
+			receivedMessages, err := CreateReceivedMessages(&parcels, parcelTypeId)
 
 			if err != nil {fatal("Unable to convert []RawApiMessages to []jugger.ReceivedMessage", err)}
 
-			fmt.Printf("digging massive hole for %s booty!\n", parcelTypeName)
+			fmt.Printf("burying %s booty!\n", parcelTypeName)
 
 			err = SaveNewReceivedMessages(&receivedMessages)
 
 			if err != nil {fatal("Unable to save new []jugger.ReceivedMessage in database", err)}
-
-			err = SaveNewReceivedMessageMetadata(&metaDatas)
-
-			if err != nil {fatal("Unable to save new []jugger.ReceivedMessageMetadata in database", err)}
 
 		}else{
 
@@ -152,16 +148,15 @@ func SnatchSlackParcels()([]RawApiMessage, error){
 	return allMessages, nil
 }
 
-func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.ReceivedMessage, []jugger.ReceivedMessageMetadata, error) {
+func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.ReceivedMessage, error) {
 
 	receivedMessages := make([]jugger.ReceivedMessage, len(*messages), len(*messages))
-	receivedMessageMetadata := make([]jugger.ReceivedMessageMetadata, len(*messages), len(*messages))
 
 	for i, message := range *messages {
 
 		userId, err := FindUserIdBySlackUser(message.user, parcelType)
 
-		if(err != nil){return nil, nil, err}
+		if(err != nil){return nil, err}
 
 		receivedMessages[i] = jugger.ReceivedMessage{
 			ReceivedMessageId: 0,
@@ -172,17 +167,15 @@ func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.
 			ParseStatusId: 1,
 			CreatedOn: time.Now().UTC(),
 			LastUpdated: time.Now().UTC(),
-		}
-
-		// note: even though there can be multiple metadata for each message, there is only one for now.
-		// additionally, i am using slack as the verbage standard. all other input sources will have verbage converted to slack properties
-		receivedMessageMetadata[i] = jugger.ReceivedMessageMetadata {
-			Key:"Channel",
-			Value: message.channel,
+			Metadata: []jugger.ReceivedMessageMetadata{
+				jugger.ReceivedMessageMetadata{
+					Key:"Channel",
+					Value: message.channel},
+			},
 		}
 	}
 
-	return receivedMessages, receivedMessageMetadata, nil
+	return receivedMessages, nil
 }
 
 func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
@@ -268,76 +261,40 @@ func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
 
 func SaveNewReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
 
-	query := `
+	messageQuery := `
 	INSERT INTO ReceivedMessage
 	(ParcelTypeId, MessageText, UserId)
 	Values(?, ?, ?)
 	`
+	metaQuery := `
+	INSERT INTO ReceivedMessageMetadata
+	(ReceivedMessageId, Key, Value)
+	Values(?, ?, ?)
+	`
+
 	db, err := sql.Open("sqlite3", ConnectionString)
 
 	if(err != nil){return err}
 
 	defer db.Close() //todo: understand this line better
 
-	transaction, err := db.Begin()
-
-	if(err != nil){return err}
-
-	statement, err := transaction.Prepare(query)
-
-	if(err != nil){return err}
-
-	defer statement.Close()
-
 	for _, message := range *messages {
 
-		_, err := statement.Exec(
-			message.ParcelTypeId,
-			message.MessageText,
-			message.UserId)
+		res, err := easydb.Exec(db, messageQuery, message.ParcelTypeId, message.MessageText, message.UserId)
+
+		//todo: (improve performance and io by using a view to abstract the two tables into 1)
 
 		if(err != nil){return err}
+
+		lastId, _ := res.LastInsertId()
+
+		for _, meta := range message.Metadata {
+
+			_, err := easydb.Exec(db, metaQuery, lastId, meta.Key, meta.Value)
+
+			if(err != nil){return err}
+		}
 	}
-
-	transaction.Commit()
-
-	return nil
-}
-
-func SaveNewReceivedMessageMetadata(metadatas *[]jugger.ReceivedMessageMetadata)(error){
-
-	query := `
-	INSERT INTO ReceivedMessageMetadata
-	(ReceivedMessageId, Key, Value)
-	Values(?, ?, ?)
-	`
-	db, err := sql.Open("sqlite3", ConnectionString)
-
-	if(err != nil){return err}
-
-	defer db.Close()
-
-	transaction, err := db.Begin()
-
-	if(err != nil){return err}
-
-	statement, err := transaction.Prepare(query)
-
-	if(err != nil){return err}
-
-	defer statement.Close()
-
-	for _, meta := range *metadatas {
-
-		_, err := statement.Exec(
-			meta.ReceivedMessageId,
-			meta.Key,
-			meta.Value)
-
-		if(err != nil){return err}
-	}
-
-	transaction.Commit()
 
 	return nil
 }

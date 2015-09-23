@@ -10,6 +10,7 @@ type ReceivedMessage struct {
 	ParseStatusId int
 	CreatedOn time.Time
 	LastUpdated time.Time
+	Metadata []ReceivedMessageMetadata
 }
 
 type ReceivedMessageMetadata struct {
