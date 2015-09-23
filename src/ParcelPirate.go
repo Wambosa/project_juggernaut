@@ -4,6 +4,7 @@ import (
 	"os"
 	"fmt"
 	"time"
+	"strconv"
 	"database/sql"
 	"github.com/wambosa/easydb"
 	"github.com/wambosa/slack"
@@ -17,6 +18,7 @@ var (
 )
 
 type RawApiMessage struct {
+	channel string
 	user string
 	text string
 	ts string
@@ -25,9 +27,10 @@ type RawApiMessage struct {
 type ProcessingMethod func()([]RawApiMessage, error)
 
 func main() {
+	fmt.Println("Parcel Pirate 2")
 
-	ParcelProcessors := map[string]ProcessingMethod {
-		"slack": ProcessSlackParcels,
+	ParcelSnatcher := map[string]ProcessingMethod {
+		"slack": SnatchSlackParcels,
 	}
 
 	pirateConf, err := confman.LoadJson(fmt.Sprint(confman.GetThisFolder(), "\\ParcelPirate.conf"))
@@ -47,28 +50,38 @@ func main() {
 
 	for parcelTypeName, parcelTypeId := range supportedParcelTypes {
 
-		messages, err := ParcelProcessors[parcelTypeName]()
+		parcels, err := ParcelSnatcher[parcelTypeName]()
 
 		if err != nil {fatal(fmt.Sprintf("ParcelProcessor %s failed", parcelTypeName), err)}
 
-		if(len(messages) > 0) {
+		if(len(parcels) > 0) {
 
-			receivedMessages, err := CreateReceivedMessages(&messages, parcelTypeId)
+			fmt.Printf("snatched %v parcels from %s\n", len(parcels), parcelTypeName)
+
+			receivedMessages, metaDatas, err := CreateReceivedMessages(&parcels, parcelTypeId)
 
 			if err != nil {fatal("Unable to convert []RawApiMessages to []jugger.ReceivedMessage", err)}
 
-			err = SaveNewlyReceivedMessages(&receivedMessages)
+			fmt.Printf("digging massive hole for %s booty!\n", parcelTypeName)
 
-			if err != nil {fatal("Failed to write to database", err)}
+			err = SaveNewReceivedMessages(&receivedMessages)
+
+			if err != nil {fatal("Unable to save new []jugger.ReceivedMessage in database", err)}
+
+			err = SaveNewReceivedMessageMetadata(&metaDatas)
+
+			if err != nil {fatal("Unable to save new []jugger.ReceivedMessageMetadata in database", err)}
 
 		}else{
 
-			fmt.Printf("No messages found while crawling %s", parcelTypeName)
+			fmt.Printf("No parcels found while sailing near %s\n", parcelTypeName)
 		}
 	}
+
+	fmt.Println("done")
 }
 
-func ProcessSlackParcels()([]RawApiMessage, error){
+func SnatchSlackParcels()([]RawApiMessage, error){
 
 	//todo: defautlt to db lookup, then failback to config file. if neither exist. exit.
 	// "SELECT key, value FROM ConfigTable WHERE key IN('token', 'channel', 'lastRunTime') AND OwnerName = '%s'"
@@ -76,59 +89,79 @@ func ProcessSlackParcels()([]RawApiMessage, error){
 
 	if err != nil {return nil, err}
 
+	chanSlice := make([]string, len(confMap["channels"].([]interface{})))
+
+	for i, cha := range confMap["channels"].([]interface{}) {
+		chanSlice[i] = cha.(string)}
+
 	slackConf := slack.SlackConfig {
 		Token: confMap["token"].(string),
-		Channel: confMap["channel"].(string),
+		Channels: chanSlice,
 		LastRunTime: confMap["lastRunTime"].(string),
 	}
 
-	slack.Init(slackConf) //todo: ask sam about this technique (proper to init a library?)
+	channelIds := slackConf.Channels
 
-	//this return type needs to have generic keys across all types. use slack as the model citizen (design a struct or interface that deals with this)
-	rawMessages, err := slack.GetDefaultChannelMessagesSinceLastRun()
+	if (len(channelIds) == 0) {
+		channelIds, err = slack.GetChannelIds(slackConf.Token)
+		if err != nil {return nil, err}
+	}
 
-	if err != nil {return nil, err}
+	allMessages := make([]RawApiMessage, 0)
+	oldestTime := slackConf.LastRunTime
 
-	messages := make([]RawApiMessage, len(rawMessages))
+	for _, channelId := range channelIds {
 
-	for i, mess := range rawMessages {
+		// this return type needs to have generic keys across all types.
+		// use slack as the model citizen (design a struct or interface that deals with this)
+		slackMessages, err := slack.GetChannelMessagesSinceLastRun(slackConf.Token, channelId, oldestTime)
 
-		if user, ok := mess["user"]; ok { //ensure that only real user messages are stored.
-			messages[i] = RawApiMessage{
-				user: user.(string),
-				text: mess["text"].(string),
-				ts:mess["ts"].(string),
+		if err != nil {return nil, err}
+
+		channelMessages := make([]RawApiMessage, 0)
+
+		for _, mess := range slackMessages {
+			if _, ok := mess["user"]; ok { //ensure that only real user messages are stored. (slack bot messages do not have a user property)
+					channelMessages = append(channelMessages, RawApiMessage{
+						channel: channelId, //this will be the current channel in this for loop
+						user: mess["user"].(string),
+						text: mess["text"].(string),
+						ts:mess["ts"].(string),
+					})
 			}
+		}
+
+		if(len(channelMessages) > 0){
+
+			allMessages = append(allMessages, channelMessages...)
+
+			messageEpoch,_ := strconv.ParseUint(channelMessages[0].ts[:10], 10, 64)
+			configEpoch,_ := strconv.ParseUint(slackConf.LastRunTime[:10], 10, 64)
+
+			if( messageEpoch > configEpoch) {
+				slackConf.LastRunTime = channelMessages[0].ts}
 		}
 	}
 
-	if(len(messages) > 0){
-		slackConf.LastRunTime = messages[0].ts 	//note: slack api returns message in newest/latest first order. time.Now().UTC().Format(time.RFC3339)
-	}else{
-		slackConf.LastRunTime = fmt.Sprintf("%v.000000", time.Now().UTC().Unix())
-	}
+	if(len(allMessages) == 0) {
+		slackConf.LastRunTime = fmt.Sprintf("%v.000000", time.Now().UTC().Unix())}
 
 	//todo: maybe error check this guy...
 	confman.SaveJson(confman.GetThisFolder() + "\\slack.conf", slack.ConvertSlackConfigToMap(slackConf))
 
-	return messages, nil
+	return allMessages, nil
 }
 
-func fatal(myDescription string, err error) {
-	fmt.Println("FATAL: ", myDescription)
-	fmt.Println(err)
-	os.Exit(1)
-}
-
-func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.ReceivedMessage, error) {
+func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.ReceivedMessage, []jugger.ReceivedMessageMetadata, error) {
 
 	receivedMessages := make([]jugger.ReceivedMessage, len(*messages), len(*messages))
+	receivedMessageMetadata := make([]jugger.ReceivedMessageMetadata, len(*messages), len(*messages))
 
 	for i, message := range *messages {
 
 		userId, err := FindUserIdBySlackUser(message.user, parcelType)
 
-		if(err != nil){return nil, err}
+		if(err != nil){return nil, nil, err}
 
 		receivedMessages[i] = jugger.ReceivedMessage{
 			ReceivedMessageId: 0,
@@ -140,9 +173,16 @@ func CreateReceivedMessages(messages *[]RawApiMessage, parcelType int)([]jugger.
 			CreatedOn: time.Now().UTC(),
 			LastUpdated: time.Now().UTC(),
 		}
+
+		// note: even though there can be multiple metadata for each message, there is only one for now.
+		// additionally, i am using slack as the verbage standard. all other input sources will have verbage converted to slack properties
+		receivedMessageMetadata[i] = jugger.ReceivedMessageMetadata {
+			Key:"Channel",
+			Value: message.channel,
+		}
 	}
 
-	return receivedMessages, nil
+	return receivedMessages, receivedMessageMetadata, nil
 }
 
 func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
@@ -171,7 +211,7 @@ func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
 	//then we either have not yet seen this user in slack, or they do not have relationship with juggernaut
 	if(len(userIds) == 0){
 
-		slackInfo, err := slack.GetUserInfo(slackUser)
+		slackInfo, err := slack.GetUserInfoWithCachedToken(slackUser)
 
 		if err != nil {return 0, err}
 
@@ -189,20 +229,26 @@ func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
 
 		if(len(userIds) > 0){
 			//we have a relationship, but did not recognize the user in this context at first.
-			userId = userIds[0]["UserId"].(int)
+			userId = int(userIds[0]["UserId"].(int64))
 
 		}else{
 			//then we do not have a relationship with juggernaut, create a userrecord and add in some preferences
 			//todo: dig deeper by trying a first name, last name match ?
 
+			var nickname, firstName, lastName string
+
+			if val, ok := slackInfo["name"]; ok {nickname = val.(string)}
+			if val, ok := profile["first_name"]; ok {firstName = val.(string)}
+			if val, ok := profile["last_name"]; ok {lastName = val.(string)}
+
 			res, err := easydb.Exec(db,
 				`INSERT INTO User (NickName, FirstName, LastName) VALUES (?,?,?)`,
-				slackInfo["name"].(string), profile["first_name"].(string), profile["last_name"].(string))
+				nickname, firstName, lastName)
 
 			if err != nil {return 0, err}
 
-			id64, _ := res.LastInsertId()
-			userId = int(id64)
+			lastId, _ := res.LastInsertId()
+			userId = int(lastId)
 			easydb.Exec(db,
 				`INSERT INTO UserPreference (UserId, Key, Value) VALUES (?,?,?)`,
 				fmt.Sprintf("%v",userId), "Email", profile["email"].(string))
@@ -214,14 +260,13 @@ func FindUserIdBySlackUser(slackUser string, parcelType int)(int, error){
 			userId, "SlackUser", slackUser)
 
 	}else{
-		userId = userIds[0]["UserId"].(int)
+		userId = int(userIds[0]["UserId"].(int64))
 	}
 
-	os.Exit(1)
 	return userId, nil
 }
 
-func SaveNewlyReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
+func SaveNewReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
 
 	query := `
 	INSERT INTO ReceivedMessage
@@ -257,4 +302,48 @@ func SaveNewlyReceivedMessages(messages *[]jugger.ReceivedMessage)(error){
 	transaction.Commit()
 
 	return nil
+}
+
+func SaveNewReceivedMessageMetadata(metadatas *[]jugger.ReceivedMessageMetadata)(error){
+
+	query := `
+	INSERT INTO ReceivedMessageMetadata
+	(ReceivedMessageId, Key, Value)
+	Values(?, ?, ?)
+	`
+	db, err := sql.Open("sqlite3", ConnectionString)
+
+	if(err != nil){return err}
+
+	defer db.Close()
+
+	transaction, err := db.Begin()
+
+	if(err != nil){return err}
+
+	statement, err := transaction.Prepare(query)
+
+	if(err != nil){return err}
+
+	defer statement.Close()
+
+	for _, meta := range *metadatas {
+
+		_, err := statement.Exec(
+			meta.ReceivedMessageId,
+			meta.Key,
+			meta.Value)
+
+		if(err != nil){return err}
+	}
+
+	transaction.Commit()
+
+	return nil
+}
+
+func fatal(myDescription string, err error) {
+	fmt.Println("FATAL: ", myDescription)
+	fmt.Println(err)
+	os.Exit(1)
 }

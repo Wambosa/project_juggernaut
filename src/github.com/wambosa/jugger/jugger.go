@@ -12,6 +12,13 @@ type ReceivedMessage struct {
 	LastUpdated time.Time
 }
 
+type ReceivedMessageMetadata struct {
+	ReceivedMessageMetadataId int
+	ReceivedMessageId int
+	Key string
+	Value string
+}
+
 type ParcelType struct {
 	ParcelTypeId int
 	ParcelTypeName string

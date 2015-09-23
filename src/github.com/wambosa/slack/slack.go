@@ -9,83 +9,97 @@ const Version = 1
 
 const baseUrl = "https://slack.com/api/"
 
+var cachedToken string
+
 type SlackConfig struct {
 	Token string
-	Channel string
+	Channels []string
 	LastRunTime string
-}
-
-var methodLinks map[string]string
-
-func Init(conf SlackConfig) {
-
-	methodLinks = map[string]string {
-		"GetChannels": fmt.Sprintf("channels.list?token=%s", conf.Token),
-		"GetAllChannelMessages": fmt.Sprintf("channels.history?token=%s&channel=", conf.Token),
-		"GetAllDefaultChannelMessages": fmt.Sprintf("channels.history?token=%s&channel=%s", conf.Token, conf.Channel),
-		"GetDefaultChannelMessagesSince": fmt.Sprintf("channels.history?token=%s&channel=%s&oldest=", conf.Token, conf.Channel),
-		"GetDefaultChannelMessagesSinceLastRun": fmt.Sprintf("channels.history?token=%s&channel=%s&oldest=%s", conf.Token, conf.Channel, conf.LastRunTime),
-		"PostMessageToDefaultChannel": fmt.Sprintf("chat.postMessage?token=%s&username=ChOPS&channel=%s&text=", conf.Token, conf.Channel),
-		"GetUserInfo": fmt.Sprintf("users.info?token=%s&user=", conf.Token),
-	}
 }
 
 func ConvertSlackConfigToMap(conf SlackConfig) (map[string]interface{}){
 	return map[string]interface{}{
 		"token": conf.Token,
-		"channel": conf.Channel,
+		"channels": conf.Channels, //todo: test this
 		"lastRunTime":conf.LastRunTime,
 	}
 }
 
-func GetChannels() (map[string]interface{}, error) {
+func GetChannels(token string) ([]map[string]interface{}, error) {
 
-	//todo: change the return type to either a slice of maps (or a map of maps)
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetChannels"])
+	cachedToken = token
+
+	method := fmt.Sprintf("%schannels.list?token=%s", baseUrl, token)
+
+	response, err := simhttp.GetResponseAsMap(method)
+
+	if err != nil || response == nil {return nil, err}
+
+	channels := make([]map[string]interface{}, len(response["channels"].([]interface{})))
+
+	for i, channel := range response["channels"].([]interface{}){
+		channels[i] = channel.(map[string]interface{})}
+
+	return channels, nil
 }
 
-func GetAllChannelMessages(slackChannel string)(map[string]interface{}, error) {
+func GetChannelIds(token string) ([]string, error) {
 
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetAllChannelMessages"] + slackChannel)
+	cachedToken = token
+
+	chans, err := GetChannels(token)
+
+	if err != nil {return nil, err}
+
+	channelIds := make([]string, len(chans))
+
+	for i, cha := range chans {
+		channelIds[i] = cha["id"].(string)
+	}
+
+	return channelIds, nil
 }
 
-func GetAllDefaultChannelMessages()(map[string]interface{}, error) {
+func GetChannelMessagesSinceLastRun(token, channel string, lastRunTime string)([]map[string]interface{}, error) {
 
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetAllDefaultChannelMessages"])
-}
+	cachedToken = token
 
-func GetDefaultChannelMessagesSince(unixStamp string)(map[string]interface{}, error) {
+	method := fmt.Sprintf("%schannels.history?token=%s&channel=%s&oldest=%s", baseUrl, token, channel, lastRunTime)
 
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSince"] + unixStamp)
-}
-
-func GetDefaultChannelMessagesSinceLastRun()([]map[string]interface{}, error) {//todo: test out map[string]string
-
-	response, err := simhttp.GetResponseAsMap(baseUrl + methodLinks["GetDefaultChannelMessagesSinceLastRun"])
+	response, err := simhttp.GetResponseAsMap(method)
 
 	if(err != nil || response == nil){return nil, err}
 
 	messages := make([]map[string]interface{}, len(response["messages"].([]interface{})))
 
 	for i, message := range response["messages"].([]interface{}) {
-		messages[i] = message.(map[string]interface{})
-	}
+		messages[i] = message.(map[string]interface{})}
 
 	return messages, nil
 }
 
 func PostMessageToDefaultChannel(message string)(map[string]interface{}, error) {
-	//todo: do some testing to determine string escaping needs.
-	return simhttp.GetResponseAsMap(baseUrl + methodLinks["PostMessageToDefaultChannel"] + message)
+	// todo: do some testing to determine string escaping needs.
+	// fmt.Sprintf("chat.postMessage?token=%s&username=ChOPS&channel=%s&text="
+	return simhttp.GetResponseAsMap(baseUrl + message)
 }
 
-func GetUserInfo(userId string)(map[string]interface{}, error){
+func GetUserInfo(token, userId string)(map[string]interface{}, error){
 
-	response, err := simhttp.GetResponseAsMap(baseUrl + methodLinks["GetUserInfo"] + userId)
+	cachedToken = token
+
+	method := fmt.Sprintf("%susers.info?token=%s&user=%s", baseUrl, token, userId)
+
+	response, err := simhttp.GetResponseAsMap(method)
 
 	if err != nil || response == nil {return nil, err}
 
 	userInfo := response["user"].(map[string]interface{})
 
 	return userInfo, nil
+}
+
+func GetUserInfoWithCachedToken(userId string)(map[string]interface{}, error) {
+
+	return GetUserInfo(cachedToken, userId)
 }

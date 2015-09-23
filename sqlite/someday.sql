@@ -56,7 +56,7 @@ CREATE TABLE User ( -- a user can be used like a group as well
 	NickName		TEXT,
 	FirstName		TEXT,
 	LastName		TEXT,
-	LastUpdated		TIMESTAMP	DEFAULT CURRENT_TIMESTAMP, -- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
+	LastUpdated		TIMESTAMP	DEFAULT CURRENT_TIMESTAMP -- ISO8601 YYYY-MM-DD HH:MM:SS.SSS
 );
 
 CREATE TABLE UserPreference (
@@ -99,8 +99,8 @@ CREATE TABLE Job (
 	FOREIGN KEY(UserId) REFERENCES User(UserId)
 );
 
-CREATE TABLE JobData (
-	JobDataId		INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE JobMetadata (
+	JobMetadataId	INTEGER PRIMARY KEY AUTOINCREMENT,
 	JobId			INTEGER,
 	Key				TEXT,
 	Value			TEXT,
@@ -134,6 +134,15 @@ CREATE TABLE ReceivedMessage (
 	FOREIGN KEY(ParseStatusId) REFERENCES ParseStatus(ParseStatusId)
 );
 
+CREATE TABLE ReceivedMessageMetadata (
+	ReceivedMessageMetadataId	INTEGER PRIMARY KEY AUTOINCREMENT,
+	ReceivedMessageId	INTEGER,
+	Key					TEXT,
+	Value				TEXT,
+
+	FOREIGN KEY(ReceivedMessageId) REFERENCES ReceivedMessage(ReceivedMessageId)
+);
+
 CREATE TABLE ResponseMessage (
 	ResponseMessageId 	INTEGER PRIMARY KEY AUTOINCREMENT,
 	ParcelTypeId		INT,		-- how to send this message
@@ -150,13 +159,13 @@ CREATE TABLE ResponseMessage (
 	FOREIGN KEY(UserId) REFERENCES User(UserId)
 );
 
-CREATE TABLE MindVocabulary (--TODO: potentially rename to TriggerPhrase
-	MindVocabularyId	INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE TriggerPhrase (
+	TriggerPhraseId		INTEGER PRIMARY KEY AUTOINCREMENT,
 	SimpleWord			TEXT,	-- the word that the machine knows and can translate to a command
 	Regex				TEXT,	-- the match that my machine must make
 	Certainty			INTEGER	-- the amount of points that should be added towards a particular interpretation
 );
-INSERT INTO `MindVocabulary` (`MindVocabularyId`, `SimpleWord`, `Regex`, `Certainty`) VALUES
+INSERT INTO `TriggerPhrase` (`TriggerPhraseId`, `SimpleWord`, `Regex`, `Certainty`) VALUES
 (1, 'define', 'define\b', 75),
 (2, 'define', 'definition\b|defnition\b', 100),
 (3, 'define', 'meaning\sof\b', 50),
@@ -178,18 +187,18 @@ INSERT INTO `ParameterReasoning` VALUES
 CREATE TABLE ParameterReasoningGrouping (
 	ParameterGroupingId		INTEGER PRIMARY KEY AUTOINCREMENT,
 	ParameterName			TEXT, --becomes the key in key/value tables
-	MindVocabularyId		INTEGER NOT NULL,
+	TriggerPhraseId			INTEGER NOT NULL,
 	ParameterReasoningId	INTEGER NOT NULL,
 
-	FOREIGN KEY(MindVocabularyId) REFERENCES MindVocabulary(MindVocabularyId),
+	FOREIGN KEY(TriggerPhraseId) REFERENCES TriggerPhrase(TriggerPhraseId),
 	FOREIGN KEY(ParameterReasoningId) REFERENCES ParameterReasoning(ParameterReasoningId)
 );
-INSERT INTO `ParameterReasoningGrouping` (`ParameterName`, `MindVocabularyId`, `ParameterReasoningId`) VALUES
-('wordToDefine', 1, 2),
-('wordToDefine', 2, 1),
-('wordToDefine', 3, 2),
-('wordToDefine', 4, 1),
-('wordToDefine', 5, 2);
+INSERT INTO `ParameterReasoningGrouping` (`ParameterName`, `TriggerPhraseId`, `ParameterReasoningId`) VALUES
+('WordToDefine', 1, 2),
+('WordToDefine', 2, 1),
+('WordToDefine', 3, 2),
+('WordToDefine', 4, 1),
+('WordToDefine', 5, 2);
 
 --
 --
