@@ -7,8 +7,9 @@ CREATE TABLE Action (
 	ActionName		TEXT	-- easy name (possible to have duplicates due to potentially different methods)
 );
 INSERT INTO `Action` VALUES
-(1, 'define'),
-(2, 'setBuildId');
+(1, 'Define'),
+(2, 'Joke'),
+(3, 'CannedResponse');
 
 CREATE TABLE ChainCommand (
 	ChainCommandId			INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,7 +26,6 @@ CREATE TABLE Mind (
 	MindName		TEXT,	-- friendly name that this mind responds to
 	Nosiness		INTEGER,-- 1 - 100% chance of butting in conversation
 	Sassyness		INTEGER,-- 1 - 100% chance of insulting user
-	Speed			INTEGER,-- 5 - 600 seconds polling interval 
 	UniqueAddress	TEXT,	-- MAC + first init epoch timestamp
 	LastUpdated		TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- when this mind last checked in
 );
@@ -158,47 +158,6 @@ CREATE TABLE ResponseMessage (
 	FOREIGN KEY(JobId) REFERENCES Job(JobId),
 	FOREIGN KEY(UserId) REFERENCES User(UserId)
 );
-
-CREATE TABLE TriggerPhrase (
-	TriggerPhraseId		INTEGER PRIMARY KEY AUTOINCREMENT,
-	SimpleWord			TEXT,	-- the word that the machine knows and can translate to a command
-	Regex				TEXT,	-- the match that my machine must make
-	Certainty			INTEGER	-- the amount of points that should be added towards a particular interpretation
-);
-INSERT INTO `TriggerPhrase` (`TriggerPhraseId`, `SimpleWord`, `Regex`, `Certainty`) VALUES
-(1, 'define', 'define\b', 75),
-(2, 'define', 'definition\b|defnition\b', 100),
-(3, 'define', 'meaning\sof\b', 50),
-(4, 'define', 'dictionary', 50),
-(5, 'define', 'what\sis', 25),
-(6, 'joke', 'joke\b', 100);
-
-CREATE TABLE ParameterReasoning (
-	ParameterReasoningId	INTEGER PRIMARY KEY AUTOINCREMENT,
-	Description				TEXT,	-- what was i thinking when i made this row
-	IsIncludeOriginRegex	BOOLEAN,-- do we need to include the regex string in MindVocabulary
-	Method					TEXT,	-- exec test match search replace split
-	Regex					TEXT	-- the match that will give us the argument
-);
-INSERT INTO `ParameterReasoning` VALUES
-(1, 'the very last word in the message becomes the argument data', 0, 'match', '\w{1,}(?:.(?!\w{1,}))+$'),
-(2, 'the word immediately after vocabulary word becomes the argument', 1, 'match', '(?:{0}\s)\w{1,}');
-
-CREATE TABLE ParameterReasoningGrouping (
-	ParameterGroupingId		INTEGER PRIMARY KEY AUTOINCREMENT,
-	ParameterName			TEXT, --becomes the key in key/value tables
-	TriggerPhraseId			INTEGER NOT NULL,
-	ParameterReasoningId	INTEGER NOT NULL,
-
-	FOREIGN KEY(TriggerPhraseId) REFERENCES TriggerPhrase(TriggerPhraseId),
-	FOREIGN KEY(ParameterReasoningId) REFERENCES ParameterReasoning(ParameterReasoningId)
-);
-INSERT INTO `ParameterReasoningGrouping` (`ParameterName`, `TriggerPhraseId`, `ParameterReasoningId`) VALUES
-('WordToDefine', 1, 2),
-('WordToDefine', 2, 1),
-('WordToDefine', 3, 2),
-('WordToDefine', 4, 1),
-('WordToDefine', 5, 2);
 
 --
 --

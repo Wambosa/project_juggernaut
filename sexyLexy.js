@@ -3,55 +3,75 @@
 var moment = require('moment');
 var sqlite = require('sqlite3').verbose();
 
-var actionMap = []; //no need for this after debug.
-
 main();
 
+//todo: take arg for both database names and verbosity level
+// SexyLexy -v 10 -lex 'bin/sexylexy.db3' -db 'bin/someday.db3'
 function main(){
 
-    var db = new sqlite.Database('someday.db');
+    var db = new sqlite.Database('bin/someday.db3');
 
-    db.all('SELECT * FROM MindVocabulary', [], function(vocabErr, vocabRows){
-
-        if(vocabErr){
-            process.exit(vocabErr);}
-
-        var cachedReasoning = [];
-        var callbackCount = 0;
-
-        vocabRows.forEach(function(vocab){
-
-            var query =
-                ' \
-                SELECT * \
-                FROM ParameterReasoningGrouping map \
-                JOIN ParameterReasoning pr \
-                ON pr.ParameterReasoningId = map.ParameterReasoningId \
-                WHERE map.MindVocabularyId = $mindVocabularyId \
-                ';
-
-            db.all(query, {$mindVocabularyId : vocab.MindVocabularyId}, function(reasoningErr, reasoningRows){
-
-                if(reasoningErr){
-                    process.exit(reasoningErr);}
-
-                cachedReasoning[vocab.MindVocabularyId] = vocab;
-                cachedReasoning[vocab.MindVocabularyId].parameterReasonings = reasoningRows;
-                callbackCount++;
-                if(callbackCount === vocabRows.length){
-                    ProcessNewMessages(db, cachedReasoning);}
-                });
-        });
-    });
+    GetCoreLogic(db, function(actionIds, cachedReasoning){
+        ProcessNewMessages(db, actionIds, cachedReasoning);});
 
     db.close();
 }
 
-function ProcessNewMessages(db, cachedReasoning){
+function GetCoreLogic(db, callback){
 
-    db.each('SELECT * FROM ReceivedMessage WHERE ParseStatusId != 3', function(err, row){
+    db.all('SELECT * FROM Action', [], function(actionErr, actionRows){
 
-        var potentialActions = GetPotentialActions(cachedReasoning, row.MessageText);
+        if(actionErr){
+            process.exit(actionErr);}
+
+        var actionIds = {};
+
+        actionRows.forEach(function(row){
+            actionIds[row.ActionName] = row.ActionId;});
+
+        db.all('SELECT * FROM TriggerPhrase', [], function(vocabErr, vocabRows){
+
+            if(vocabErr){
+                process.exit(vocabErr);}
+
+            var cachedReasoning = [];
+            var callbackCount = 0;
+
+            vocabRows.forEach(function(vocab){
+
+                var query =
+                    ' \
+                    SELECT * \
+                    FROM ParameterReasoningGrouping map \
+                    JOIN ParameterReasoning pr \
+                    ON pr.ParameterReasoningId = map.ParameterReasoningId \
+                    WHERE map.TriggerPhraseId = $triggerPhraseId \
+                    ';
+
+                db.all(query, {$triggerPhraseId : vocab.TriggerPhraseId}, function(reasoningErr, reasoningRows){
+
+                    if(reasoningErr){
+                        process.exit(reasoningErr);}
+
+                    cachedReasoning[vocab.TriggerPhraseId] = vocab;
+                    cachedReasoning[vocab.TriggerPhraseId].parameterReasonings = reasoningRows;
+                    callbackCount++;
+                    if(callbackCount === vocabRows.length){
+                        callback(actionIds, cachedReasoning);}
+                });
+            });
+        });
+    });
+}
+
+function ProcessNewMessages(db, actionIds, cachedReasoning){
+
+    db.each('SELECT * FROM ReceivedMessage WHERE ParseStatusId = 1', function(err, message){
+
+        if(err){
+            process.exit(err);}
+
+        var potentialActions = GetPotentialActions(cachedReasoning, message.MessageText);
         var bestAction = {totalCertainty:0};
 
         potentialActions.forEach(function(action) {
@@ -61,8 +81,47 @@ function ProcessNewMessages(db, cachedReasoning){
         });
 
         console.log(bestAction);
-        //todo: just take the highest action certainty and create a job record with it, or try to extract the arguments
-        //todo: using the argument formula table. {0}\s.* where the variable gets replaces with the original regex
+
+        if(bestAction["actionName"]){
+            //todo: just take the highest action certainty and create a job record with it, or try to extract the arguments
+            //todo: using the argument formula table. {0}\s.* where the variable gets replaces with the original regex
+
+            if(actionIds[bestAction.actionName]){
+
+                CreateJob(
+                    db,
+                    actionIds[bestAction.actionName],
+                    bestAction.totalCertainty,
+                    message.UserId,
+                    bestAction.parameters,
+                    function(err){
+
+                        if(err){
+                            process.exit(err);}
+
+                        message.JobId = this.lastID;
+                        message.ParseStatusId = 3; /* 3 means success */
+
+                        UpdateMessage(
+                            db,
+                            message,
+                            function(err){if(err){process.exit(err);}}
+                        );
+                    }
+                );
+
+            }else{
+                process.exit("SexyLexy Database does not have an action named "+bestAction.actionName);}
+        }else{
+
+            message.ParseStatusId = 4; /* 4 means failed */
+
+            UpdateMessage(
+                db,
+                message,
+                function(err){process.exit(err);}
+            );
+        }
     });
 }
 
@@ -72,11 +131,11 @@ function GetPotentialActions(cachedReasoning, text){
     cachedReasoning.forEach(function(triggerPhrase){
         if(text.match(triggerPhrase.Regex)) {
 
-            potentialActions[triggerPhrase.MindVocabularyId] = {
+            potentialActions[triggerPhrase.TriggerPhraseId] = {
                 humanMessage: text,
-                simpleWord: triggerPhrase.SimpleWord,
+                actionName: triggerPhrase.ActionName,
                 totalCertainty: triggerPhrase.Certainty,
-                parameters: []
+                parameters: {}
             };
 
             triggerPhrase.parameterReasonings.forEach(function (paramReasoning) {
@@ -85,12 +144,13 @@ function GetPotentialActions(cachedReasoning, text){
 
                 if (tryArg) {
 
-                    potentialActions[triggerPhrase.MindVocabularyId].totalCertainty += 100; // if args are discovered, then this is more likely to be the best option
+                    potentialActions[triggerPhrase.TriggerPhraseId].totalCertainty += 100; // if args are discovered, then this is more likely to be the best option
 
+                    //(this IF may not be needed if i move sexyLexy out of the js regex limitations)
                     if(paramReasoning.IsIncludeOriginRegex) {
-                        potentialActions[triggerPhrase.MindVocabularyId].parameters[paramReasoning.ParameterName] = tryArg[0].replace(new RegExp(triggerPhrase.Regex), '').trim();
+                        potentialActions[triggerPhrase.TriggerPhraseId].parameters[paramReasoning.ParameterName] = tryArg[0].replace(new RegExp(triggerPhrase.Regex), '').trim();
                     } else {
-                        potentialActions[triggerPhrase.MindVocabularyId].parameters[paramReasoning.ParameterName] = tryArg[0].trim();
+                        potentialActions[triggerPhrase.TriggerPhraseId].parameters[paramReasoning.ParameterName] = tryArg[0].trim();
                     }
                 }
             });
@@ -100,7 +160,7 @@ function GetPotentialActions(cachedReasoning, text){
     return potentialActions;
 }
 
-function CreateJob(database, actionId, certainty, userId, callback){
+function CreateJob(db, actionId, certainty, userId, parameters, callback){
 
     var now = moment().utc().format('YYYY-MM-DD HH:mm:ss.SSS');
 
@@ -108,18 +168,23 @@ function CreateJob(database, actionId, certainty, userId, callback){
         'INSERT INTO Job \
         (JobStatusId, ActionId, Certainty, UserId, CreatedOn, LastUpdated) \
         VALUES \
-        (1, $actionId, $certainty, $userId, $createdOn, lastUpdated)';
+        (1, $actionId, $certainty, $userId, $createdOn, $lastUpdated)';
 
-    database.run(query, {
+    //todo: write to the job meta
+    Object.getOwnPropertyNames(parameters).forEach(function(paramKey){
+        console.log("Key:"+paramKey +" "+"val:"+parameters[paramKey])
+    });
+
+    db.run(query, {
         $actionId : actionId,
         $certainty : certainty,
         $userId : userId,
         $createdOn : now,
         $lastUpdated : now
-    }, function(err){callback(err);});
+    }, callback);
 }
 
-function UpdateMessage(database, mutatedMessageRow, callback){
+function UpdateMessage(db, mutatedMessageRow, callback){
 
     var now = moment().utc().format('YYYY-MM-DD HH:mm:ss.SSS');
 
@@ -128,11 +193,13 @@ function UpdateMessage(database, mutatedMessageRow, callback){
         SET \
         JobId = $jobId, \
         ParseStatusId = $parseStatusId, \
-        LastUpdated = $lastUpdated';
+        LastUpdated = $lastUpdated \
+        WHERE ReceivedMessageId = $receivedMessageId';
 
-    database.run(query, {
-        $jobId : mutatedMessageRow.jobId,
-        $parseStatusId : mutatedMessageRow.parseStatuId,
+    db.run(query, {
+        $receivedMessageId : mutatedMessageRow.ReceivedMessageId,
+        $jobId : mutatedMessageRow.JobId,
+        $parseStatusId : mutatedMessageRow.ParseStatusId,
         $lastUpdated : now
-    }, function(err){callback(err);});
+    }, callback);
 }
