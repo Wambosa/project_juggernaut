@@ -26,7 +26,7 @@ CREATE TABLE Mind (
 	MindName		TEXT,	-- friendly name that this mind responds to
 	Nosiness		INTEGER,-- 1 - 100% chance of butting in conversation
 	Sassyness		INTEGER,-- 1 - 100% chance of insulting user
-	UniqueAddress	TEXT,	-- MAC + first init epoch timestamp
+	UniqueAddress	TEXT,	-- HostName|MAC|username
 	LastUpdated		TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- when this mind last checked in
 );
 
