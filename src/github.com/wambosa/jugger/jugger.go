@@ -1,6 +1,21 @@
 package jugger
 import "time"
 
+type Mind struct {
+	MindId int
+	MindName string
+	Nosiness int
+	Sassyness int
+	UniqueAddress string
+	LastUpdated time.Time
+}
+
+type MindCapability struct {
+	MindCapabilityId int
+	MindId int
+	ActionId int
+}
+
 type ReceivedMessage struct {
 	ReceivedMessageId int
 	ParcelTypeId int

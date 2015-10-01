@@ -28,7 +28,7 @@ type ProcessingMethod func()([]RawApiMessage, error)
 
 func main() {
 	fmt.Println("Parcel Pirate 2")
-
+	//todo : ascii art
 	ParcelSnatcher := map[string]ProcessingMethod {
 		"slack": SnatchSlackParcels,
 	}
